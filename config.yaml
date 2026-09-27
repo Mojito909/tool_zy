@@ -1,0 +1,144 @@
+# Excel-to-Word 合同生成工具 — 配置文件
+# 不同的 Excel 格式只需修改此文件即可复用
+
+sheet_detection:
+  mode: "by_pattern"          # by_name | by_pattern | by_index | first
+  pattern: "现货产品明细表"
+
+data:
+  header_row: 1               # 字段名所在行（0-indexed）
+  data_start_row: 2           # 数据起始行（0-indexed）
+  stop_on_empty_column: "合同产品名称"
+
+# Excel 列表头名称 → 内部字段名（按表头名匹配，不依赖列顺序）
+# 表头名称中的多余空格会被自动规范化处理，不区分大小写差异
+column_mapping:
+  "采购合同号": contract_no
+  "客户名称": customer_name
+  "玉湖主体": yuhu_entity
+  "供应商名称": supplier_name
+  "序号": seq_no
+  "合同产品名称": product_name
+  "国家": country
+  "厂号": factory_no
+  "柜号": container_no
+  "规格": spec
+  "件数/箱": quantity
+  "重量": weight
+  "单价/kg": unit_price
+  "金额/元": amount
+  "生产日期": production_date
+  "仓库（货物位置）": warehouse
+
+# 各字段的值转换规则
+transformations:
+  production_date:
+    type: excel_date
+    format: "%Y-%m-%d"
+  factory_no:
+    type: to_string
+  seq_no:
+    type: number
+    decimal_places: 0
+    default: 0
+  quantity:
+    type: number
+    decimal_places: 0
+    default: 0
+  weight:
+    type: number
+    decimal_places: 2
+    default: 0.0
+  unit_price:
+    type: number
+    decimal_places: 2
+    default: 0.0
+  amount:
+    type: number
+    decimal_places: 2
+    default: 0.0
+
+# Word 模板设置
+word:
+  template_path: "templates/采购合同模板.docx"
+
+  # 段落级占位符
+  placeholders:
+    contract_no: "{{采购合同号}}"
+    supplier_name: "{{供应商名称}}"
+    yuhu_entity: "{{玉湖主体}}"
+    country: "{{国家}}"
+    factory_no: "{{厂号}}"
+    warehouse: "{{仓库}}"
+
+  # 产品表设置
+  product_table:
+    table_index: 0
+    template_row_index: 1     # 模板产品行在 Table 中的行号（0-indexed）
+
+  # 签署表设置
+  signature_table:
+    table_index: 1
+
+# 税率设置
+tax:
+  vat_rate: 0.09              # 增值税率 9%（食品类）
+
+# 合同类型设置
+default_type: "purchase"       # 可选: purchase | sales（CLI --type 参数可覆盖）
+
+# 销售合同专用设置
+sales:
+  unit_price_markup: 0.1       # 销售单价 = Excel unit_price + 此值
+  prepayment_rate: 0.3         # 预付款 = 采购合同总金额 * 此比例
+  financing_days: 90           # 融资时长（天），生成时可在窗口修改（直接回车用此默认值）
+
+  word:
+    template_path: "templates/销售合同模板.docx"
+
+    placeholders:
+      sales_contract_no: "{{销售合同号}}"
+      master_agreement_no: "{{主协议号}}"
+      customer_name: "{{客户名称}}"
+      yuhu_entity: "{{玉湖主体}}"
+      supplier_name: "{{供应商名称}}"
+      prepayment: "{{预付款}}"
+      prepayment_rate_pct: "{{预付款百分比}}"
+      financing_days: "{{融资时长}}"
+
+    product_table:
+      table_index: 0
+      template_row_index: 1
+
+    signature_table:
+      table_index: 1
+
+  output:
+    pattern: "销售订单-{customer_name}-{serial}.docx"
+    directory: "./output"
+
+  cleanup_placeholders:
+    - "{{暂时为空}}"
+
+# 溢价版销售订单（新客户专用，生成时在窗口选择）
+# 溢价金额 = (采购合同总金额 − 预付款) × 费率 ÷ 360 × 提货期限天数
+premium_sales:
+  template_path: "templates/销售订单溢价版.docx"
+  financing_rate: 0.05             # 费率 5%，生成时可在窗口修改
+  use_thousands_separator: true    # 金额带千分位（39,195.51）
+  output_prefix: "销售订单溢价版"   # 文件名前缀，避免与标准销售订单重名
+
+  placeholders:
+    premium_amount: "{{溢价金额}}"
+
+  product_table:
+    table_index: 0
+    template_row_index: 2          # 模板：两个表头行 + 产品行在索引 2
+
+  signature_table:
+    table_index: 1
+
+# 输出设置
+output:
+  pattern: "采购合同-{supplier_name}-{serial}.docx"
+  directory: "./output"
