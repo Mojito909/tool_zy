@@ -18,6 +18,8 @@ on:
 jobs:
   build:
     runs-on: windows-latest
+    # 卡死快速失败：曾因测试弹出模态窗口等待输入，白跑 2.5 小时
+    timeout-minutes: 15
 
     steps:
       - name: Checkout

@@ -45,8 +45,15 @@ def config_file(tmp_path):
 
 @pytest.fixture(autouse=True)
 def non_interactive(monkeypatch):
-    """让窗口输入分支被跳过，测试不阻塞在 input()。"""
+    """跳过窗口输入分支，并禁止任何测试弹出文件夹选择窗口。
+
+    Windows 上 tkinter 可用，若某测试选了"2 = 自定义文件夹"而没自己 mock，
+    filedialog 会弹出模态窗口等待输入，CI 里无人应答 → 永久阻塞。
+    这里默认把它关掉；需要测弹窗的测试自行 monkeypatch 覆盖。
+    """
+    import src.main as m
     monkeypatch.setattr(sys.stdin, "isatty", lambda: False)
+    monkeypatch.setattr(m, "_pick_folder_dialog", lambda initial: (None, False))
 
 
 def test_output_flag_overrides_directory(excel_file, config_file, tmp_path):
